@@ -1,0 +1,27 @@
+version: "2.1"
+services:
+  syncthing:
+    image: lscr.io/linuxserver/syncthing:latest
+    container_name: syncthing
+    hostname: $HOSTNAME
+    environment:
+      - PUID=$UID
+      - PGID=$GID
+      - TZ=$TZ
+    volumes:
+      - $HARBOUR/apps/syncthing/config:/config
+      - $DATA_DIR1:/data1
+    expose:
+      - 8384
+    ports:
+      - 22000:22000/tcp
+      - 22000:22000/udp
+      - 21027:21027/udp
+    restart: unless-stopped
+    networks:
+      default:
+        ipv4_address: $IP_SYNCTHING
+networks:
+  default:
+    external: true
+    name: $DOCKER_NETWORK

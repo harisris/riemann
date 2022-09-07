@@ -1,0 +1,125 @@
+version: '3.8'
+secrets:
+  jwt:
+    file: $HARBOUR/magics/authelia_jwt
+  session:
+    file: $HARBOUR/magics/authelia_session
+  redis:
+    file: $HARBOUR/magics/authelia_redis
+  postgres:
+    file: $HARBOUR/magics/authelia_postgres
+  smtp:
+    file: $HARBOUR/magics/authelia_icloud_smtp
+  store_encrypt:
+    file: $HARBOUR/magics/authelia_store_encrypt
+  oidc_hmac:
+    file: $HARBOUR/magics/authelia_oidc_hmac_magic
+  oidc_private:
+    file: $HARBOUR/magics/authelia_oidc_private_key
+
+services:
+  authelia:
+    secrets: [jwt, session, redis, postgres, smtp, store_encrypt, oidc_hmac, oidc_private]
+    container_name: authelia 
+    image: authelia/authelia:latest
+    user: "1000:1000"
+    expose:
+      - 9091
+    volumes:
+      - $HARBOUR/door/authelia/config:/config
+    restart: unless-stopped
+    environment:
+      AUTHELIA_JWT_SECRET_FILE: /run/secrets/jwt
+      AUTHELIA_SESSION_SECRET_FILE: /run/secrets/session
+      AUTHELIA_SESSION_REDIS_PASSWORD_FILE: /run/secrets/redis
+      AUTHELIA_STORAGE_POSTGRES_PASSWORD_FILE: /run/secrets/postgres
+      AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE: /run/secrets/store_encrypt
+      AUTHELIA_NOTIFIER_SMTP_PASSWORD_FILE: /run/secrets/smtp
+      AUTHELIA_IDENTITY_PROVIDERS_OIDC_HMAC_SECRET_FILE: /run/secrets/oidc_hmac
+      AUTHELIA_IDENTITY_PROVIDERS_OIDC_ISSUER_PRIVATE_KEY_FILE: /run/secrets/oidc_private
+    depends_on:
+      - auth_redis
+      - auth_postgres
+
+  auth_redis:
+    container_name: auth_redis
+    image: bitnami/redis:latest
+    secrets:
+      - redis
+    expose:
+      - 6379
+    volumes:
+      - $HARBOUR/door/authelia/auth_redis/config:/opt/bitnami/redis/mounted-etc
+      - $HARBOUR/door/authelia/auth_redis/data:/bitnami/redis/data
+    environment:
+      REDIS_PASSWORD_FILE: /run/secrets/redis
+    restart: unless-stopped
+
+  auth_postgres:
+    container_name: auth_postgres
+    image: bitnami/postgresql:latest
+    secrets:
+      - postgres
+    expose:
+      - 5432
+    volumes:
+      - $HARBOUR/door/authelia/auth_postgres:/bitnami/postgresql
+    environment:
+      POSTGRESQL_USERNAME: authelia
+      POSTGRESQL_DATABASE: authelia
+      POSTGRESQL_PASSWORD_FILE: /run/secrets/postgres
+    restart: unless-stopped
+
+  swag:
+    image: lscr.io/linuxserver/swag
+    container_name: swag
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+      - URL=$DOMAIN
+      - SUBDOMAINS=wildcard
+      - VALIDATION=dns
+      - CERTPROVIDER=zerossl
+      - DNSPLUGIN=cloudflare
+      - DOCKER_MODS=linuxserver/mods:universal-docker|linuxserver/mods:swag-dashboard|linuxserver/mods:swag-cloudflare-real-ip|linuxserver/mods:swag-auto-reload|linuxserver/mods:swag-crowdsec
+      - CROWDSEC_API_KEY=$CROWDSEC_API_KEY
+      - CROWDSEC_LAPI_URL=$CROWDSEC_LAPI_URL
+      - EMAIL=$EMAIL
+    volumes:
+      - $HARBOUR/door/swag:/config
+    ports:
+      - 443:443
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges=true
+    networks:
+      default:
+        ipv4_address: $IP_SWAG
+    
+  crowdsec:
+    image: docker.io/crowdsecurity/crowdsec:latest
+    container_name: crowdsec
+    environment:
+      - GID=1000
+      - COLLECTIONS=crowdsecurity/nginx crowdsecurity/http-cve crowdsecurity/whitelist-good-actors
+      - CUSTOM_HOSTNAME=$HOSTNAME
+    volumes:
+      - $HARBOUR/door/crowdsec/config:/etc/crowdsec:rw
+      - $HARBOUR/door/crowdsec/data:/var/lib/crowdsec/data:rw
+      - $HARBOUR/door/swag/log/nginx:/var/log/swag:ro
+      - /var/log:/var/log/host:ro      
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges=true
+    networks:
+      default:
+        ipv4_address: $IP_CROWDSEC
+
+
+networks:
+  default:
+    external: true
+    name: $DOCKER_NETWORK

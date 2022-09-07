@@ -1,0 +1,28 @@
+version: "3"
+services:
+  gluetun:
+    image: qmcgaw/gluetun
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - $HARBOUR/apps/gluetun:/gluetun
+    environment:
+      - VPN_SERVICE_PROVIDER=$VPN_PROVIDER
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY=$VPN_PRIVATE_KEY
+      - WIREGUARD_ADDRESSES=$VPN_SUBNET
+      - SERVER_HOSTNAMES=$VPN_HOSTNAME
+      - TZ=$TZ
+      - FIREWALL_VPN_INPUT_PORTS=$VPN_PORT_FORWARD
+    expose:
+      - 8112
+    networks:
+      default:
+        ipv4_address: $IP_GLUETUN
+networks:
+  default:
+    name: $DOCKER_NETWORK
+    external: true

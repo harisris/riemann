@@ -1,0 +1,47 @@
+version: "2.1"
+services:
+  xteve:
+    image: alturismo/xteve_guide2go
+    container_name: xteve
+    restart: unless-stopped
+    cap_add: 
+      - NET_ADMIN
+    depends_on:
+      - xteve_wg
+    ports:
+      - 34400:34400
+    environment:
+      TZ: $TZ
+    entrypoint: ["bash", "-c", "chmod +x /root/.xteve/switch_vpn.sh && sh /root/.xteve/switch_vpn.sh && ./entrypoint.sh"]
+    volumes:
+      - $HARBOUR/apps/xteve/dot:/root/.xteve
+      - $HARBOUR/apps/xteve/config:/config
+      - $HARBOUR/apps/xteve/tmp:/tmp/xteve
+      - $HARBOUR/apps/xteve/guide2go:/guide2go
+    networks:
+      default:
+        ipv4_address: $IP_XTEVE
+  xteve_wg:
+    image: lscr.io/linuxserver/wireguard:latest
+    container_name: xteve_wg
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=$UID
+      - PGID=$GID
+      - TZ=$TZ
+    volumes:
+      - $HARBOUR/apps/xteve/wireguard:/config
+      - /lib/modules:/lib/modules
+    networks:
+      default:
+        ipv4_address: $IP_WG
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    restart: unless-stopped
+
+networks:
+  default:
+    name: $DOCKER_NETWORK
+    external: true

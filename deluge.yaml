@@ -1,0 +1,21 @@
+version: "2.1"
+services:
+  deluge:
+    volumes:
+      - $HARBOUR/apps/deluge:/config
+      - $DOWNER:/downloads
+    environment:
+      - PUID=$UID
+      - PGID=$GID
+      - TZ=$TZ
+    restart: unless-stopped
+    network_mode: "container:gluetun"
+    image: lscr.io/linuxserver/deluge:latest
+    container_name: deluge
+    depends_on:
+      - glueton
+
+networks:
+  default:
+    name: $DOCKER_NETWORK
+    external: true

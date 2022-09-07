@@ -1,0 +1,48 @@
+version: "3"
+secrets:
+  hass_maria:
+    file: $HARBOUR/magics/hass_maria
+  hass_maria_rt:
+    file: $HARBOUR/magics/hass_maria_rt
+
+services:
+  hass:
+    image: lscr.io/linuxserver/homeassistant:latest
+    container_name: hass
+    environment:
+      - PUID=$UID
+      - PGID=$GID
+      - TZ=$TZ
+    volumes:
+      - $HARBOUR/apps/hass:/config
+    depends_on:
+      - hass_maria
+    expose:
+      - 8123
+    restart: unless-stopped
+    networks:
+      default:
+        ipv4_address: $IP_HASS
+
+  hass_maria:
+    container_name: hass_maria
+    image: linuxserver/mariadb:latest
+    secrets: [hass_maria, hass_maria_rt]
+    expose:
+      - 3306
+    volumes:
+      - $HARBOUR/apps/hass/hass_maria:/config
+    environment:
+      - PUID=$UID
+      - PGID=$GID
+      - TZ=$TZ
+      - MYSQL_DATABASE=hass
+      - MYSQL_USER=hass
+      - FILE__MYSQL_PASSWORD=/run/secrets/hass_maria
+      - FILE__MYSQL_ROOT_PASSWORD=/run/secrets/hass_maria_rt
+    restart: unless-stopped
+
+networks:
+  default:
+    external: true
+    name: $DOCKER_NETWORK

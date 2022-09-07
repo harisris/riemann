@@ -1,0 +1,21 @@
+version: "2"
+services:
+  adguard:
+    image: adguard/adguardhome
+    container_name: adguard
+    volumes:
+      - $HARBOUR/apps/adguard/workdir:/opt/adguardhome/work
+      - $HARBOUR/apps/adguard/confdir:/opt/adguardhome/conf
+    restart: unless-stopped
+    expose:
+      - 80
+    ports:
+      - 53:53/tcp
+      - 53:53/udp
+    networks:
+      default:
+        ipv4_address: $IP_ADGUARD
+networks:
+  default:
+    external: true
+    name: $DOCKER_NETWORK
